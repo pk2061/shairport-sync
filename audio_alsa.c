@@ -298,10 +298,10 @@ int open_mixer() {
             debug(1, "Failed to load mixer element");
             response = -4;
           } else {
-            debug(3, "Mixer Control name is \"%s\".", alsa_mix_ctrl);
+            debug(3, "Mixer control is \"%s\",%d.", alsa_mix_ctrl, alsa_mix_index);
             alsa_mix_elem = snd_mixer_find_selem(alsa_mix_handle, alsa_mix_sid);
             if (!alsa_mix_elem) {
-              warn("failed to find mixer control \"%s\".", alsa_mix_ctrl);
+              warn("failed to find mixer control \"%s\",%d.", alsa_mix_ctrl, alsa_mix_index);
               response = -5;
             } else {
               response = 1; // we found a hardware mixer and successfully opened it
@@ -1054,6 +1054,16 @@ static int init(int argc, char **argv) {
       alsa_mix_ctrl = (char *)str;
     }
 
+
+    // Get the Mixer Control Index
+    if (config_lookup_int(config.cfg, "alsa.mixer_control_index", &value)) {
+      alsa_mix_index = value;
+    }
+
+
+
+
+
     /* Get the disable_synchronization setting. */
     if (config_lookup_string(config.cfg, "alsa.disable_synchronization", &str)) {
       if (strcasecmp(str, "no") == 0)
@@ -1455,19 +1465,31 @@ int precision_delay_and_status(snd_pcm_state_t *state, snd_pcm_sframes_t *delay,
   int ret = snd_pcm_status(alsa_handle, alsa_snd_pcm_status);
   if (ret == 0) {
 
-// must be 1.1 or later to use snd_pcm_status_get_driver_htstamp
-#if SND_LIB_MINOR == 0
     snd_pcm_status_get_htstamp(alsa_snd_pcm_status, &update_timestamp);
-#else
-    snd_pcm_status_get_driver_htstamp(alsa_snd_pcm_status, &update_timestamp);
+
+/*
+// must be 1.1 or later to use snd_pcm_status_get_driver_htstamp
+#if SND_LIB_MINOR != 0
+    snd_htimestamp_t driver_htstamp;
+    snd_pcm_status_get_driver_htstamp(alsa_snd_pcm_status, &driver_htstamp);
+    uint64_t driver_htstamp_ns = driver_htstamp.tv_sec;
+    driver_htstamp_ns = driver_htstamp_ns * 1000000000;
+    driver_htstamp_ns = driver_htstamp_ns + driver_htstamp.tv_nsec;
+    debug(1,"driver_htstamp: %f.", driver_htstamp_ns * 0.000000001);
 #endif
+*/
 
     *state = snd_pcm_status_get_state(alsa_snd_pcm_status);
 
     if ((*state == SND_PCM_STATE_RUNNING) || (*state == SND_PCM_STATE_DRAINING)) {
 
-      uint64_t update_timestamp_ns =
-          update_timestamp.tv_sec * (uint64_t)1000000000 + update_timestamp.tv_nsec;
+ //     uint64_t update_timestamp_ns =
+ //         update_timestamp.tv_sec * (uint64_t)1000000000 + update_timestamp.tv_nsec;
+
+      uint64_t update_timestamp_ns = update_timestamp.tv_sec;
+      update_timestamp_ns = update_timestamp_ns * 1000000000;
+      update_timestamp_ns = update_timestamp_ns + update_timestamp.tv_nsec;
+
 
       // if the update_timestamp is zero, we take this to mean that the device doesn't report
       // interrupt timings. (It could be that it's not a real hardware device.)
@@ -1497,7 +1519,7 @@ int precision_delay_and_status(snd_pcm_state_t *state, snd_pcm_sframes_t *delay,
       if (update_timestamp_ns == 0) {
         ret = snd_pcm_delay(alsa_handle, delay);
       } else {
-        *delay = snd_pcm_status_get_delay(alsa_snd_pcm_status);
+        snd_pcm_sframes_t delay_temp = snd_pcm_status_get_delay(alsa_snd_pcm_status);
 
         /*
         // It seems that the alsa library uses CLOCK_REALTIME before 1.0.28, even though
@@ -1514,11 +1536,15 @@ int precision_delay_and_status(snd_pcm_state_t *state, snd_pcm_sframes_t *delay,
         else
           clock_gettime(CLOCK_REALTIME, &tn);
 
-        uint64_t time_now_ns = tn.tv_sec * (uint64_t)1000000000 + tn.tv_nsec;
+        // uint64_t time_now_ns = tn.tv_sec * (uint64_t)1000000000 + tn.tv_nsec;
+        uint64_t time_now_ns = tn.tv_sec;
+        time_now_ns = time_now_ns * 1000000000;
+        time_now_ns = time_now_ns + tn.tv_nsec;
+
 
         // see if it's stalled
 
-        if ((stall_monitor_start_time != 0) && (stall_monitor_frame_count == *delay)) {
+        if ((stall_monitor_start_time != 0) && (stall_monitor_frame_count == delay_temp)) {
           // hasn't outputted anything since the last call to delay()
 
           if (((update_timestamp_ns - stall_monitor_start_time) > stall_monitor_error_threshold) ||
@@ -1539,19 +1565,27 @@ int precision_delay_and_status(snd_pcm_state_t *state, snd_pcm_sframes_t *delay,
           }
         } else {
           stall_monitor_start_time = update_timestamp_ns;
-          stall_monitor_frame_count = *delay;
+          stall_monitor_frame_count = delay_temp;
         }
 
         if (ret == 0) {
           uint64_t delta = time_now_ns - update_timestamp_ns;
 
-          uint64_t frames_played_since_last_interrupt =
-              ((uint64_t)config.output_rate * delta) / 1000000000;
+//          uint64_t frames_played_since_last_interrupt =
+//              ((uint64_t)config.output_rate * delta) / 1000000000;
+
+            uint64_t frames_played_since_last_interrupt = config.output_rate;
+            frames_played_since_last_interrupt = frames_played_since_last_interrupt * delta;
+            frames_played_since_last_interrupt = frames_played_since_last_interrupt / 1000000000;
+
+
           snd_pcm_sframes_t frames_played_since_last_interrupt_sized =
               frames_played_since_last_interrupt;
-
-          *delay = *delay - frames_played_since_last_interrupt_sized;
+          if ((frames_played_since_last_interrupt_sized < 0) || ((uint64_t)frames_played_since_last_interrupt_sized != frames_played_since_last_interrupt))
+            debug(1,"overflow resizing frames_played_since_last_interrupt % " PRIx64 " to frames_played_since_last_interrupt %lx.", frames_played_since_last_interrupt, frames_played_since_last_interrupt_sized);
+          delay_temp = delay_temp - frames_played_since_last_interrupt_sized;
         }
+        *delay = delay_temp;
       }
     } else { // not running, thus no delay information, thus can't check for
              // stall
@@ -1582,25 +1616,26 @@ int delay(long *the_delay) {
   // sps_extra_code_output_state_cannot_make_ready codes
   int ret = 0;
   *the_delay = 0;
+
+  int oldState;
+
+  snd_pcm_state_t state;
+  snd_pcm_sframes_t my_delay = 0; // this initialisation is to silence a clang warning
+
+  pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldState); // make this un-cancellable
+  pthread_cleanup_debug_mutex_lock(&alsa_mutex, 10000, 0);
+
   if (alsa_handle == NULL)
     ret = ENODEV;
-  else {
-    int oldState;
-
-    snd_pcm_state_t state;
-    snd_pcm_sframes_t my_delay = 0; // this initialisation is to silence a clang warning
-
-    pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &oldState); // make this un-cancellable
-    pthread_cleanup_debug_mutex_lock(&alsa_mutex, 10000, 0);
-
+  else
     ret = delay_and_status(&state, &my_delay, NULL);
 
-    debug_mutex_unlock(&alsa_mutex, 0);
-    pthread_cleanup_pop(0);
-    pthread_setcancelstate(oldState, NULL);
+  debug_mutex_unlock(&alsa_mutex, 0);
+  pthread_cleanup_pop(0);
+  pthread_setcancelstate(oldState, NULL);
 
-    *the_delay = my_delay; // note: snd_pcm_sframes_t is a long
-  }
+  *the_delay = my_delay; // note: snd_pcm_sframes_t is a long
+
   return ret;
 }
 

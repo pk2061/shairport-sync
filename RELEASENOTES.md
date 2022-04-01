@@ -1,12 +1,20 @@
 Please see the [Release Notes for 3.3](https://github.com/mikebrady/shairport-sync/releases/tag/3.3).
 
+Version 3.3.9
+====
+**Bug Fix**
+* Version 3.3.9 fixes a build failure with convolution raised since `automake 1.16.5` and https://git.savannah.gnu.org/cgit/automake.git/commit/?id=f4a3a70f69e1dbccb6578f39ef47835098a04624.
+Further details in [Fabrice Fontaine's original PR](https://github.com/mikebrady/shairport-sync/pull/1314) to the `development` branch. Many thanks to [Fabrice Fontaine](https://github.com/ffontaine) for the bug report and for the fix.
+
 Version 3.3.8
 ====
 **Enhancements**
 * Documentation for the MQTT interface. Many thanks to [minix1234](https://github.com/minix1234)!
 
 **Bug Fixes**
-* Fix a bug that caused Shairport Sync to hang, but not actually crash, if an on-play or any on-*** script failed.
+* Fix a bug in the `alsa` back end. In the interval between checking that the alsa device handle was non-`NULL` and actually using it, the handle could be set to `NULL`. The interval between check and usage is now protected.
+* Fix a bug in the `alsa` precision timing code. Thanks to [durwin99](https://github.com/durwin99), [Nicolas Da Mutten](https://github.com/cleverer), [mistakenideas](https://github.com/mistakenideas), [Ben Willmore](https://github.com/ben-willmore) and [giggywithit](https://github.com/giggywithit) for the [report](https://github.com/mikebrady/shairport-sync/issues/1158).
+* Fix a bug that caused Shairport Sync to hang, but not actually crash, if an `on-...` script failed.
 * Fix a crash that occurred if metadata support is enabled during compilation but turned off in the configuration file. Thanks to [Tim Curtis](https://github.com/moodeaudio) for the report.
 * Fix a crash that occurred playing from AirPower on Android. Thanks to [Ircama](https://github.com/Ircama) for the report.
 * Fix the configure.ac file so that `--without-<feature>` configuration options are not interpreted as `--with-<feature>` options instead! Thanks to [David Racine](https://github.com/bassdr) for the report.

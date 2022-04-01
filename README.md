@@ -1,7 +1,7 @@
 
 Shairport Sync
 =============
-Shairport Sync is an AirPlay audio player – it plays audio streamed from iTunes, iOS, Apple TV and macOS devices and AirPlay sources such as Quicktime Player and [ForkedDaapd](http://ejurgensen.github.io/forked-daapd/), among others.
+Shairport Sync is an AirPlay 1 audio player. Switch to the `development` branch for a version with limited AirPlay 2 functionality. Shairport Sync plays audio streamed from iTunes, iOS, Apple TV and macOS devices and AirPlay sources such as Quicktime Player and [OwnTone](https://github.com/owntone/owntone-server#owntone-previously-forked-daapd), among others.
 
 Audio played by a Shairport Sync-powered device stays synchronised with the source and hence with similar devices playing the same source. In this way, synchronised multi-room audio is possible for players that support it, such as iTunes and the macOS Music app.
 
@@ -42,6 +42,7 @@ What else?
 * An [MPRIS](https://specifications.freedesktop.org/mpris-spec/2.2/) interface, partially complete and very functional, including access to metadata and artwork, and some limited remote control.
 * An interface to [MQTT](https://en.wikipedia.org/wiki/MQTT), an often-used protocol in home automation projects.
 * A native D-Bus interface, including access to metadata and artwork, some limited remote control and some system settings.
+* Digital Signal Processing facilities -- please see the [DSP Wiki Page Guide](https://github.com/mikebrady/shairport-sync/wiki/Digital-Signal-Processing-with-Shairport-Sync). (Thanks to [Yann Pomarède](https://github.com/yannpom) for the code and to [Paul Wieland](https://github.com/PaulWieland) for the guide.)
 
 Heritage
 -------
@@ -70,6 +71,8 @@ Shairport Sync may already be available as a package in your Linux distribution 
 **Ubuntu:** A `shairport-sync` installer package is available for Ubuntu. Additionally, a Personal Package Archives for Shairport Sync master and development branches are available at https://launchpad.net/~dantheperson.
 
 **Debian:** shairport-sync is in the Debian archive.
+
+**Ansible Playbooks for CentOS 8 Stream on Raspberry Pi:** A suite of Ansible playbooks and scripts to make deploying Shairport Sync easy on CentOS 8 Stream specifically on Raspberry Pi is available at https://github.com/p3ck/ansible-shairport.
 
 **OpenWrt:** There is a Shairport Sync package in OpenWrt trunk. Also, there's an OpenWrt package at https://github.com/mikebrady/shairport-sync-for-openwrt, including one that builds back to Barrier Breaker.
 
